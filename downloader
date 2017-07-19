@@ -1,0 +1,85 @@
+#!/bin/bash
+
+#Teste para o atualizador/baixador das ferramentas da uname para o Kurupira OS
+
+echo -e "\nSeja bem-vindo à tool de download/update para as ferramentas da Uname"
+echo -e "Corporation."
+
+help()
+{
+  echo -e "\nAjuda do programa:\n"
+  echo -e "-h | --help        Este menu de ajuda"
+  echo -e "-d | --download    Menu de download de ferramentas"
+}
+
+error()
+{
+  echo -e "\nOpa, parece que você digitou um comando inválido...\n";
+}
+
+download()
+{
+  count=0;
+  repo=`curl -s https://github.com/unamecorporation | fgrep '<h3>' -A 5 \
+  | egrep '<a href=".*">' \
+  | sed 's@ itemprop=.*>@@g; s@<a href="/unamecorporation/@@g' \
+  | tr -d ' "'  2>/dev/null`;
+
+  echo -e "\nSegue a lista das ferramentas no repositório:\n";
+
+  #echo "$repo" |
+  while read -r line
+  do
+    ((++count));
+    echo "$count - $line"
+  done <<< $(echo "$repo")
+
+  echo -e "\nEscolha um dos números listados acima para começar o download ou";
+  echo -e "pressione 0 para sair:\n"
+
+  read chosen;
+  if [[ "$chosen" == "0" ]]; then
+    {
+      break;
+    }
+  fi
+
+  if [[ "$chosen" == "" ]]; then
+    echo "Você precisa escolher um número."
+  else
+  while [[ ! $chosen =~ ^[0-"$count"]$ ]]; do
+    echo -e "\n\nVocê precisa escolher um valor listado acima\n";
+    read chosen
+  done
+fi
+
+cnt=0;
+for i in $(echo $repo)
+do
+  ((++cnt));
+  if [[ "$cnt" == "$chosen" ]]; then
+    chosen=`echo $i`;
+  fi
+done
+
+echo "Selecione o diretório onde o diretório $chosen será criado:"
+read dir;
+
+cd `echo $dir` 2>/dev/null;
+if [[ "$?" != "0" ]]; then
+  echo -e "\nOpa, parece que aconteceu algo de errado ..."
+  echo -e "Você digitou um caminho válido e tem permissões?\nSaindo..."
+fi
+echo -e ""
+git clone https://github.com/unamecorporation/$chosen
+}
+
+if [ "$*" == "-h" ] || [ "$*" == "--help" ] || [ "$*" == "" ]; then
+    help;
+  else
+    case "$1" in
+    -d | --download       ) download;            ;;
+    -h | --help           ) help;                ;;
+    *                     ) error; exit 1;       ;;
+    esac
+fi
