@@ -63,6 +63,8 @@ do
 done
 
 echo "Selecione o diretório onde o diretório $chosen será criado:"
+echo -e "Caminho atual:"
+cd ; pwd;
 read dir;
 
 cd `echo $dir` 2>/dev/null;
@@ -72,6 +74,35 @@ if [[ "$?" != "0" ]]; then
 fi
 echo -e ""
 git clone https://github.com/unamecorporation/$chosen
+if [[ "$?" != 0 ]]; then
+  exit;
+fi
+echo -e "";
+cd $chosen;
+ls > /tmp/filesondir.txt
+
+echo -e "A seguir se dará o processo de instalação do programa selecionado."
+echo -e "Para tal, acesso administrativo é necessário."
+
+while read  file
+do
+  if [[ "$file" =~ ^.*\.bc$ ]]; then
+    existebc=`sudo ls /etc/bash_completion.d/$file`
+    if [[ -z "$existebc" ]]; then
+      sudo cp $file /etc/bash_completion.d/
+    fi
+  fi
+
+  cab=`head -1 $file`;
+  if [[ "$cab" =~ ^#\!/.*$ ]]; then
+    sudo mkdir /usr/share/$chosen
+    sudo cp $file /usr/share/$chosen/
+    sudo ln -s /usr/share/$chosen/$file /usr/bin
+  fi
+done < /tmp/filesondir.txt
+
+rm /tmp/filesondir.txt
+
 }
 
 if [ "$*" == "-h" ] || [ "$*" == "--help" ] || [ "$*" == "" ]; then
