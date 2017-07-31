@@ -5,21 +5,22 @@
 echo -e "\nSeja bem-vindo à tool de download/update para as ferramentas da Uname"
 echo -e "Corporation."
 
-help()
+help()  #Menu de ajuda da ferramenta
 {
   echo -e "\nAjuda do programa:\n"
   echo -e "-h | --help        Este menu de ajuda"
   echo -e "-d | --download    Menu de download de ferramentas"
 }
 
-error()
+error() #Se digitada flag errada, informar usuário
 {
   echo -e "\nOpa, parece que você digitou um comando inválido...\n";
 }
 
-download()
+download()  #Função de download das ferramentas da UnameCorp
 {
   count=0;
+  #Pega os repositórios criados dentro do GitHub da UnameCorp
   repo=`curl -s https://github.com/unamecorporation | fgrep '<h3>' -A 5 \
   | egrep '<a href=".*">' \
   | sed 's@ itemprop=.*>@@g; s@<a href="/unamecorporation/@@g' \
@@ -27,8 +28,7 @@ download()
 
   echo -e "\nSegue a lista das ferramentas no repositório:\n";
 
-  #echo "$repo" |
-  while read -r line
+  while read -r line    #Imprime na tela os repositórios encontrados, menu
   do
     ((++count));
     echo "$count - $line"
@@ -37,24 +37,26 @@ download()
   echo -e "\nEscolha um dos números listados acima para começar o download ou";
   echo -e "pressione 0 para sair:\n"
 
-  read chosen;
-  if [[ "$chosen" == "0" ]]; then
+  read -p ">_ " chosen;   #Escolhe uma das ferramentas do menu mostrado
+  if [[ "$chosen" == "0" ]]; then   #Se for 0, sair
     {
-      break;
+      exit 0;
     }
   fi
 
-  if [[ "$chosen" == "" ]]; then
-    echo "Você precisa escolher um número."
-  else
-  while [[ ! $chosen =~ ^[0-"$count"]$ ]]; do
-    echo -e "\n\nVocê precisa escolher um valor listado acima\n";
-    read chosen
+  while [[ "$chosen" == "" ]]; do   #Obriga o usuário a informar algo
+    echo -e "Você precisa escolher um número.\n"
+    read -p ">_ " chosen
   done
-fi
+
+  #Não continua se os valores forem diferentes do menu
+  while [[ ! $chosen =~ ^[0-"$count"]$ ]]; do
+    echo -e "\nVocê precisa escolher um valor listado acima\n";
+    read -p ">_ " chosen
+  done
 
 cnt=0;
-for i in $(echo $repo)
+for i in $(echo $repo)  #Escolhe a ferramenta por nome com base no número mostrado
 do
   ((++cnt));
   if [[ "$cnt" == "$chosen" ]]; then
@@ -62,49 +64,112 @@ do
   fi
 done
 
-echo "Selecione o diretório onde o diretório $chosen será criado:"
+if [[ -d /usr/share/UnameCorp/$chosen ]]; then  #Testa se a ferramenta já existe no SO
+  echo -e "\nA ferramenta escolhida já encontra-se instalada.";
+  echo -e "Deseja sobrescrevê-la com a versão do repositório? (y/N)";
+  read -p ">_ " swrite; swrite=`echo $swrite | tr A-Z a-z 2>/dev/null`
+  if [[ "$swrite" == "" ]]; then    #Testa se nada foi digitado + Enter, padrão Não
+    swrite=n; exit 0;
+  elif [[ "$swrite" == "y" ]]; then #Testa se a resposta é sim, sobrescrever ferramenta
+    echo -e "\nA seguir se dará o processo de remoção do programa selecionado."
+    echo -e "Para tal, acesso administrativo é necessário."
+  cd /usr/share/UnameCorp/$chosen; ls > /tmp/swrite-$chosen.txt; file="";
+
+  while read  file  #Checa os arquivos existentes para apagá-los do sistema
+  do
+    cab=`head -1 $file`;
+    if [[ "$cab" =~ ^#\!/.*$ ]]; then       #Testa se um arquivo é uma tool (shebang)
+      sudo rm -f /usr/bin/$file 2>/dev/null
+      sudo rm -f /usr/share/UnameCorp/$file 2>/dev/null
+    fi
+
+    if [[ "$file" =~ ^.*\.bc$ ]]; then    #Testa se o arquivo é um bash_completion
+      existebc=`sudo ls /etc/bash_completion.d/$file` #Testa se existe o arquivo no sistema
+      if [[ ! -z "$existebc" ]]; then
+        sudo rm -f /etc/bash_completion.d/$file 2>/dev/null
+      fi
+    fi
+  done < /tmp/swrite-$chosen.txt
+  sudo rm -rf /usr/share/UnameCorp/$chosen 2>/dev/null  #Apaga o diretório
+  rm /tmp/swrite-$chosen.txt  #Apaga os arquivos temporarios de listagem
+  else
+    while [[ ! "$swrite" =~ ^[y|n]?$ ]] #Testa se foi passado o conteudo certo pra questão
+    do
+      read -p ">_ " swrite; swrite=`echo $swrite | tr A-Z a-z 2>/dev/null`
+    done
+  fi
+fi
+
+
+echo -e "\nSelecione o diretório onde o diretório $chosen será criado temporariamente:\n"
 echo -e "Caminho atual:"
 cd ; pwd;
-read dir;
+echo -e "";
+read -p ">_ " dir;
 
 cd `echo $dir` 2>/dev/null;
-if [[ "$?" != "0" ]]; then
+if [[ "$?" != "0" ]]; then  #Testa se o diretorio passado é válido
   echo -e "\nOpa, parece que aconteceu algo de errado ..."
-  echo -e "Você digitou um caminho válido e tem permissões?\nSaindo..."
+  echo -e "Você digitou um caminho válido e tem permissões?\nSaindo..."; exit 1;
 fi
 echo -e ""
-git clone https://github.com/unamecorporation/$chosen
-if [[ "$?" != 0 ]]; then
+git clone https://github.com/unamecorporation/$chosen #Baixa a ferramenta
+
+if [[ "$?" != 0 ]]; then  #Finaliza se o download não funcionar
   exit;
 fi
+
 echo -e "";
 cd $chosen;
-ls > /tmp/filesondir.txt
+
+ls > /tmp/filesondir.txt  #Lista o conteúdo e envia ao arquivo para permitir
+#que eles sejam colocados no PATH do usuário com base no tipo
 
 echo -e "A seguir se dará o processo de instalação do programa selecionado."
 echo -e "Para tal, acesso administrativo é necessário."
 
-while read  file
+while read  file  #Instala os arquivos relevantes do repositório para o SO
 do
-  if [[ "$file" =~ ^.*\.bc$ ]]; then
-    existebc=`sudo ls /etc/bash_completion.d/$file`
-    if [[ -z "$existebc" ]]; then
-      sudo cp $file /etc/bash_completion.d/
+  cab=`head -1 $file`;
+  if [[ "$cab" =~ ^#\!/.*$ ]]; then       #Testa se um arquivo é uma tool (shebang)
+    if [[ ! -d /usr/share/UnameCorp ]]; then
+      sudo mkdir /usr/share/UnameCorp
+    fi
+    if [[ ! -d "/usr/share/UnameCorp/$chosen" ]]; then  #Testa se o diretorio existe
+    sudo mkdir /usr/share/UnameCorp/$chosen
+    fi
+    sudo cp $file /usr/share/UnameCorp/$chosen/$file
+    sudo chmod +x /usr/share/UnameCorp/$chosen/$file
+    sudo ln -s /usr/share/UnameCorp/$chosen/$file /usr/bin 2>/dev/null
+  fi
+
+  if [[ "$file" =~ ^.*\.bc$ ]]; then    #Testa se o arquivo é um bash_completion
+    existebc=`sudo ls /etc/bash_completion.d/$file 2>/dev/null`
+    existebc2=`sudo ls /usr/share/UnameCorp/$chosen/$file 2>/dev/null`
+    if [[ -z "$existebc" ]]; then   #Testa se o arquivo bc ja existe no SO
+      sudo cp $file /etc/bash_completion.d/$file
+      sudo cp $file /usr/share/UnameCorp/$chosen/$file
+    fi
+
+    if [[ -z "$existebc2" ]]; then  #Testa se o bc existe na pasta da ferramenta
+    sudo cp $file /usr/share/UnameCorp/$chosen/$file
     fi
   fi
-
-  cab=`head -1 $file`;
-  if [[ "$cab" =~ ^#\!/.*$ ]]; then
-    sudo mkdir /usr/share/$chosen
-    sudo cp $file /usr/share/$chosen/
-    sudo ln -s /usr/share/$chosen/$file /usr/bin
-  fi
 done < /tmp/filesondir.txt
+rm /tmp/filesondir.txt  #Apaga o arquivo temporário
 
-rm /tmp/filesondir.txt
+if [[ "$dir" =~ ^/.*$ ]]; then  #Apaga o arquivo temporário do repositório criado
+  rm -r $dir;
+elif [[ "$dir" == "" ]]; then
+  rm -rf /home/$USER/$chosen
+else
+  rm -rf /home/$USER/$dir
+fi
 
+echo -e "\nInstalação completa com sucesso!\n";
 }
 
+#Funcionamento do programa baseado nas flags passadas
 if [ "$*" == "-h" ] || [ "$*" == "--help" ] || [ "$*" == "" ]; then
     help;
   else
