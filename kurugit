@@ -1,0 +1,262 @@
+#!/bin/bash
+
+#Teste para o atualizador/baixador das ferramentas da uname para o Kurupira OS
+
+echo -e "\nSeja bem-vindo à tool de download/update para as ferramentas da"
+echo -e "Uname Corporation."
+
+help()  #Menu de ajuda da ferramenta
+{
+  echo -e "\nAjuda do programa:\n"
+  echo -e "-u | --update      Atualiza a lista de ferramentas"
+  echo -e "-h | --help        Este menu de ajuda"
+  echo -e "-d | --download    Menu de download de ferramentas"
+}
+
+error() #Se digitada flag errada, informar usuário
+{
+  echo -e "\nOpa, parece que você digitou um comando inválido...\n";
+}
+
+update()
+{
+  echo -e "\nPara atualizar a lista de ferramentas, acesso de super usuário"
+  echo -e "é necessário.";
+
+  sudo whoami 1>/dev/null;
+  if [[ "$?" != "0" ]]; then
+    {
+      echo -e "\nHouve um problema de autenticação. Saindo.";
+      exit 1;
+    }
+  fi
+
+  alreadysudo=1;
+  echo -e "\nIniciando o download, este processo pode demorar um pouco.\n";
+
+  count=0;
+  #Pega os repositórios criados dentro do GitHub da UnameCorp
+  repo=`curl -s https://github.com/unamecorporation | fgrep '<h3>' -A 5 \
+  | egrep '<a href=".*">' \
+  | sed 's@ itemprop=.*>@@g; s@<a href="/unamecorporation/@@g' \
+  | tr -d ' "'  2>/dev/null`;
+
+  while read -r line
+  do
+    kuruignore=`curl -s -D - github.com/unamecorporation/$line/blob/master/.kuruignore \
+    -L -o /dev/null | grep "404 Not Found" -m 1`
+
+    if [[ "$kuruignore" =~ ^.*404.*$ ]]; then
+      {
+        if [[ "$repoupdated" == "" ]]; then
+          repoupdated=`echo -e "${line}"`;
+          else
+            repoupdated=`echo -e "${repoupdated}\n${line}"`;
+        fi
+      }
+    else
+      {
+        continue;
+      }
+    fi
+      kuruignore="";
+  done <<< $(echo "$repo")
+  if [[ -d /usr/share/UnameCorp/kurugit/ ]]; then
+    {
+      if [[ -e /usr/share/UnameCorp/kurugit/uctools.list ]]; then
+        {
+          sudo rm /usr/share/UnameCorp/kurugit/uctools.list;
+        }
+      fi
+      echo -e "${repoupdated}" > /tmp/uctools.list
+      sudo cp /tmp/uctools.list /usr/share/UnameCorp/kurugit/uctools.list
+      rm /tmp/uctools.list
+    }
+  elif [[ ! -d /usr/share/UnameCorp/kurugit/ ]]; then
+    {
+      sudo mkdir -p /usr/share/UnameCorp/kurugit/;
+      echo -e "${repoupdated}" > /tmp/uctools.list
+      sudo cp /tmp/uctools.list /usr/share/UnameCorp/kurugit/uctools.list
+      rm /tmp/uctools.list
+    }
+  fi
+
+  echo -e "Parece que tudo ocorreu bem. Agora você pode baixar suas ferramentas.";
+  echo -e "digite `basename $0` -d";
+}
+
+download()  #Função de download das ferramentas da UnameCorp
+{
+  if [[ ! -e /usr/share/UnameCorp/kurugit/uctools.list ]]; then
+    {
+      echo -e "Não há uma lista de ferramentas baixada nesse computador.";
+      echo -e "O processo será iniciado.";
+      update;
+    }
+  fi
+
+  if [[ "$alreadysudo" == "" ]]; then
+    {
+      alreadysudo=0;
+    }
+  fi
+
+  if [[ "$?" != "0" ]]; then
+    {
+      echo -e "Houve um problema, saindo.";
+      exit 1;
+    }
+  fi
+
+  echo -e "\nSegue a lista das ferramentas no repositório:\n";
+
+  while read -r line    #Imprime na tela os repositórios encontrados, menu
+  do
+    ((++count));
+    echo "[$count] - $line"
+  done < /usr/share/UnameCorp/kurugit/uctools.list
+
+  echo -e "\nEscolha um dos números listados acima para começar o download ou";
+  echo -e "pressione 0 para sair:\n"
+
+  read -p ">_ " chosen;   #Escolhe uma das ferramentas do menu mostrado
+  if [[ "$chosen" == "0" ]]; then   #Se for 0, sair
+    {
+      exit 0;
+    }
+  fi
+
+  while [[ "$chosen" == "" ]]; do   #Obriga o usuário a informar algo
+    echo -e "Você precisa escolher um número.\n"
+    read -p ">_ " chosen
+  done
+
+  #Não continua se os valores forem diferentes do menu
+  while [[ ! $chosen =~ ^[0-"$count"]$ ]]; do
+    echo -e "\nVocê precisa escolher um valor listado acima\n";
+    read -p ">_ " chosen
+  done
+
+cnt=0;
+for i in $(cat /usr/share/UnameCorp/kurugit/uctools.list)  #Escolhe a ferramenta por nome com base no número mostrado
+do
+  ((++cnt));
+  if [[ "$cnt" == "$chosen" ]]; then
+    chosen=`echo $i`;
+  fi
+done
+
+if [[ -d /usr/share/UnameCorp/$chosen ]]; then  #Testa se a ferramenta já existe no SO
+  echo -e "\nA ferramenta escolhida já encontra-se instalada.";
+  echo -e "Deseja sobrescrevê-la com a versão do repositório? (y/N)";
+  read -p ">_ " swrite; swrite=`echo $swrite | tr A-Z a-z 2>/dev/null`
+  if [[ "$swrite" == "" ]]; then    #Testa se nada foi digitado + Enter, padrão Não
+    swrite=n; exit 0;
+  elif [[ "$swrite" == "n" ]]; then
+    exit 0;
+  elif [[ "$swrite" == "y" ]]; then #Testa se a resposta é sim, sobrescrever ferramenta
+    echo -e "\nA seguir se dará o processo de remoção da versão instalada"
+    echo -e "do programa selecionado."
+    echo -e "Para tal, acesso administrativo é necessário."
+
+    sudo whoami 1>/dev/null;
+    if [[ "$?" != "0" ]]; then
+      echo -e "\nHouve um problema de autenticação. Saindo."
+      exit 1;
+    fi
+  cd /usr/share/UnameCorp/$chosen; ls > /tmp/swrite-$chosen.txt; file="";
+  alreadysudo=1;
+
+  while read  file  #Checa os arquivos existentes para apagá-los do sistema
+  do
+    cab=`head -1 $file`;
+    if [[ "$cab" =~ ^#\!/.*$ ]]; then       #Testa se um arquivo é uma tool (shebang)
+      sudo rm -f /usr/bin/$file 2>/dev/null
+      sudo rm -f /usr/share/UnameCorp/$file 2>/dev/null
+    fi
+
+    if [[ "$file" =~ ^.*\.bc$ ]]; then    #Testa se o arquivo é um bash_completion
+      existebc=`sudo ls /etc/bash_completion.d/$file` #Testa se existe o arquivo no sistema
+      if [[ ! -z "$existebc" ]]; then
+        sudo rm -f /etc/bash_completion.d/$file 2>/dev/null
+      fi
+    fi
+  done < /tmp/swrite-$chosen.txt
+  sudo rm -rf /usr/share/UnameCorp/$chosen 2>/dev/null  #Apaga o diretório
+  rm /tmp/swrite-$chosen.txt  #Apaga os arquivos temporarios de listagem
+  else
+    while [[ ! "$swrite" =~ ^[y|n]?$ ]] #Testa se foi passado o conteudo certo pra questão
+    do
+      read -p ">_ " swrite; swrite=`echo $swrite | tr A-Z a-z 2>/dev/null`
+    done
+  fi
+fi
+
+cd /tmp/
+echo -e ""
+git clone https://github.com/unamecorporation/$chosen #Baixa a ferramenta
+
+if [[ "$?" != 0 ]]; then  #Finaliza se o download não funcionar
+  echo -e "Houve um erro para criar $chosen em /tmp/. Saindo.";
+  exit 1;
+fi
+
+echo -e "";
+cd $chosen;
+
+ls > /tmp/filesondir.txt  #Lista o conteúdo e envia ao arquivo para permitir
+#que eles sejam colocados no PATH do usuário com base no tipo
+
+if [[ "$alreadysudo"  == "0" ]]; then
+  {
+    echo -e "A seguir se dará o processo de instalação do programa selecionado."
+    echo -e "Para tal, acesso administrativo é necessário."
+  }
+fi
+
+
+while read  file  #Instala os arquivos relevantes do repositório para o SO
+do
+  cab=`head -1 $file`;
+  if [[ "$cab" =~ ^#\!/.*$ ]]; then       #Testa se um arquivo é uma tool (shebang)
+    if [[ ! -d /usr/share/UnameCorp ]]; then
+      sudo mkdir /usr/share/UnameCorp
+    fi
+    if [[ ! -d "/usr/share/UnameCorp/$chosen" ]]; then  #Testa se o diretorio existe
+    sudo mkdir /usr/share/UnameCorp/$chosen
+    fi
+    sudo cp $file /usr/share/UnameCorp/$chosen/$file
+    sudo chmod +x /usr/share/UnameCorp/$chosen/$file
+    sudo ln -s /usr/share/UnameCorp/$chosen/$file /usr/bin 2>/dev/null
+  fi
+
+  if [[ "$file" =~ ^.*\.bc$ ]]; then    #Testa se o arquivo é um bash_completion
+    existebc=`sudo ls /etc/bash_completion.d/$file 2>/dev/null`
+    existebc2=`sudo ls /usr/share/UnameCorp/$chosen/$file 2>/dev/null`
+    if [[ -z "$existebc" ]]; then   #Testa se o arquivo bc ja existe no SO
+      sudo cp $file /etc/bash_completion.d/$file
+      sudo cp $file /usr/share/UnameCorp/$chosen/$file
+    fi
+
+    if [[ -z "$existebc2" ]]; then  #Testa se o bc existe na pasta da ferramenta
+    sudo cp $file /usr/share/UnameCorp/$chosen/$file
+    fi
+  fi
+done < /tmp/filesondir.txt
+rm /tmp/filesondir.txt  #Apaga o arquivo temporário
+
+rm -rf /tmp/$chosen
+echo -e "\nInstalação completa com sucesso!\n";
+}
+
+#Funcionamento do programa baseado nas flags passadas
+if [ "$*" == "-h" ] || [ "$*" == "--help" ] || [ "$*" == "" ]; then
+    help;
+  else
+    case "$1" in
+    -u | --update         ) update;              ;;
+    -d | --download       ) download;            ;;
+#   -h | --help           ) help;                ;;
+    *                     ) error; exit 1;       ;;
+    esac
+fi
