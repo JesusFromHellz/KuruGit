@@ -34,11 +34,9 @@ Ajuda do programa:
 
 ## Exemplo de uso
 
-A ferramenta trabalha, atualmente, de forma intuitiva com um menu listando as ferramentas e permitindo ao usurio escolher qual deseja baixar. Por exemplo, um uso comum de download seria:
+A ferramenta trabalha, atualmente, de forma intuitiva com um menu listando as ferramentas e permitindo ao usurio escolher qual deseja baixar. Por exemplo, um uso comum de download seria utilizando a `kurugit -d`:
 
 <pre>
-kurugit -d
-
 Seja bem-vindo à ferramenta de download/update para as tools da
 Uname Corporation.
 
