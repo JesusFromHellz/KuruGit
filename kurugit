@@ -1,13 +1,32 @@
 #!/bin/bash
+##Colors
+Reset="\e[0m"
+Default="\e[39m"
+Greenie="\e[38;5;46m"
+Bold="\e[1m"
+NotBold="\e[22m"
+Green="\e[92m"
+LMagenta="\e[95m"
+Magenta="\e[35m"
+Cyanie="\e[38;5;87m"
 
-#Teste para o atualizador/baixador das ferramentas da uname para o Kurupira OS
+banner()
+{
+echo -e "\nSeja bem-vindo à ferramenta de download/update para as tools da"
+echo -e "${Bold}${Green}Uname Corporation."
 
-echo -e "\nSeja bem-vindo à tool de download/update para as ferramentas da"
-echo -e "Uname Corporation."
+echo -e "${Cyanie}";
+echo "  _  __                 ____ _ _"
+echo "| |/ /   _ _ __ _   _ / ___(_) |_ "
+echo "| ' / | | | '__| | | | |  _| | __| "
+echo "| . \ |_| | |  | |_| | |_| | | |_ "
+echo "|_|\_\__,_|_|   \__,_|\____|_|\__| "
+echo -e "${Default}${NotBold}";
+}
 
 help()  #Menu de ajuda da ferramenta
 {
-  echo -e "\nAjuda do programa:\n"
+  echo -e "${Bold}\nAjuda do programa:${NotBold}\n"
   echo -e "-u | --update      Atualiza a lista de ferramentas"
   echo -e "-h | --help        Este menu de ajuda"
   echo -e "-d | --download    Menu de download de ferramentas"
@@ -20,6 +39,7 @@ error() #Se digitada flag errada, informar usuário
 
 update()
 {
+  banner;
   echo -e "\nPara atualizar a lista de ferramentas, acesso de super usuário"
   echo -e "é necessário.";
 
@@ -87,6 +107,7 @@ update()
 
 download()  #Função de download das ferramentas da UnameCorp
 {
+  banner;
   if [[ ! -e /usr/share/UnameCorp/kurugit/uctools.list ]]; then
     {
       echo -e "Não há uma lista de ferramentas baixada nesse computador.";
@@ -257,6 +278,7 @@ if [ "$*" == "-h" ] || [ "$*" == "--help" ] || [ "$*" == "" ]; then
     -u | --update         ) update;              ;;
     -d | --download       ) download;            ;;
 #   -h | --help           ) help;                ;;
+    -b | --banner         ) banner;              ;;
     *                     ) error; exit 1;       ;;
     esac
 fi
